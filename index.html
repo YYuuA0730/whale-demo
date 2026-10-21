@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐋 我的小鲸鱼</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --ink: #0b3a5b;
+    --soft: #4a7fa5;
+    --card: rgba(255,255,255,0.92);
+  }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: linear-gradient(180deg, #0a4d6e 0%, #0d6e95 40%, #1693c4 100%);
+    min-height: 100vh;
+    color: var(--ink);
+    display: flex;
+    justify-content: center;
+    padding: 16px 12px 30px;
+    overflow-x: hidden;
+  }
+  /* floating bubbles decoration */
+  .bg-bub { position: fixed; border-radius: 50%; background: rgba(255,255,255,0.08);
+            animation: rise linear infinite; pointer-events: none; z-index: 0; }
+  @keyframes rise { from { transform: translateY(110vh); } to { transform: translateY(-10vh); } }
+
+  .app {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 440px;
+    background: var(--card);
+    border-radius: 26px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.3);
+    padding: 18px 18px 22px;
+  }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .title { font-size: 21px; font-weight: 800; }
+  .name { color: #0d6e95; cursor: pointer; border-bottom: 2px dashed #9ec9e0; }
+  .name:hover { color: #0a4d6e; }
+  .level { font-size: 13px; font-weight: 700; background: #e3f2fb; color: #0d6e95;
+           padding: 4px 11px; border-radius: 999px; }
+
+  .stage {
+    position: relative;
+    margin: 8px 0 14px;
+    height: 250px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, #cdeeff 0%, #a9e0f7 55%, #8fd2f0 100%);
+    overflow: hidden;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .sea-floor { position: absolute; bottom: 0; left: 0; right: 0; height: 38px;
+               background: linear-gradient(180deg, rgba(255,255,255,0) 0%, #6fb8da 100%); }
+
+  .whale {
+    position: relative;
+    width: 220px; height: 180px;
+    margin-bottom: 24px;
+    transform-origin: center bottom;
+    transition: transform .5s cubic-bezier(.2,.8,.3,1.3);
+    animation: float 3.2s ease-in-out infinite;
+    cursor: pointer;
+  }
+  .whale svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 8px 10px rgba(13,110,149,0.25)); }
+  @keyframes float { 0%,100%{ transform: translateY(0) rotate(-1deg);} 50%{ transform: translateY(-12px) rotate(1deg);} }
+
+  /* faces hidden by default */
+  .face { display: none; }
+  .whale.normal  .face-normal  { display: block; }
+  .whale.happy   .face-happy   { display: block; }
+  .whale.sleep   .face-sleep   { display: block; }
+  .whale.hungry  .face-hungry  { display: block; }
+  .whale.love    .face-love    { display: block; }
+  .whale.dirty   .face-dirty   { display: block; }
+
+  .speech {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    background: #fff; color: #0b3a5b; font-size: 14px; font-weight: 600;
+    padding: 9px 14px; border-radius: 16px 16px 16px 4px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.18); max-width: 78%;
+    opacity: 0; transition: opacity .35s, top .35s; pointer-events: none; white-space: nowrap;
+  }
+  .speech.show { opacity: 1; top: 6px; }
+
+  .zzz { position: absolute; top: 30px; right: 18%; font-size: 20px; color: #fff;
+         font-weight: 800; opacity: 0; }
+  .whale.sleep ~ .zzz, .stage:has(.whale.sleep) .zzz { opacity: 1; animation: zzz 2s ease-in-out infinite; }
+  @keyframes zzz { 0%{opacity:0; transform: translateY(6px) scale(.8);} 50%{opacity:1;} 100%{opacity:0; transform: translateY(-10px) scale(1.1);} }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 14px; margin-bottom: 14px; }
+  .stat { font-size: 12px; }
+  .stat .lab { display: flex; justify-content: space-between; margin-bottom: 3px; font-weight: 700; color: #2b5d78; }
+  .stat .lab b { color: #0d6e95; }
+  .bar { height: 10px; background: #e1eef5; border-radius: 999px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 999px; transition: width .4s; }
+  .f-satiety > i { background: linear-gradient(90deg,#ffb347,#ff8c42); }
+  .f-mood    > i { background: linear-gradient(90deg,#ff8fb1,#ff5e8e); }
+  .f-energy  > i { background: linear-gradient(90deg,#9be15d,#52c41a); }
+  .f-clean   > i { background: linear-gradient(90deg,#7fd8ff,#39a9e8); }
+  .f-bond    > i { background: linear-gradient(90deg,#c9a0ff,#9b5de5); }
+
+  .actions { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin-bottom: 12px; }
+  .btn {
+    border: none; border-radius: 16px; padding: 12px 4px; font-size: 14px; font-weight: 700;
+    background: #eaf6fd; color: #0d6e95; cursor: pointer; transition: transform .12s, background .2s;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .btn .ico { font-size: 22px; }
+  .btn:active { transform: scale(.93); background: #d6ecf8; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .growth { font-size: 12px; color: #2b5d78; margin-bottom: 10px; }
+  .growth .gbar { height: 8px; background: #e1eef5; border-radius: 999px; overflow: hidden; margin-top: 4px; }
+  .growth .gbar > i { display: block; height: 100%; background: linear-gradient(90deg,#ffe17a,#ffb347); transition: width .4s; }
+
+  .log { background: #f3f9fc; border-radius: 14px; padding: 10px 12px; font-size: 12px; color: #3a6b85; }
+  .log h4 { font-size: 12px; color: #0d6e95; margin-bottom: 5px; }
+  .log ul { list-style: none; }
+  .log li { padding: 2px 0; border-bottom: 1px dashed #dcebf3; }
+  .log li:last-child { border: none; }
+  .log .t { color: #9bb8c9; margin-right: 6px; }
+
+  .reset { margin-top: 12px; text-align: center; }
+  .reset a { font-size: 12px; color: #b0c4d1; text-decoration: none; }
+  .reset a:hover { color: #ff8c8c; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">🐋 <span id="whaleName" class="name" title="点我改名">小鲸</span></div>
+    <div class="level" id="levelText">Lv.1 鲸卵</div>
+  </header>
+
+  <div class="stage" id="stage">
+    <div class="sea-floor"></div>
+    <div class="speech" id="speech">呜呜~ 我是你的小鲸鱼！</div>
+    <div class="whale normal" id="whale">
+      <svg viewBox="0 0 220 180">
+        <!-- tail (left) -->
+        <path d="M30 100 Q4 76 10 56 Q30 80 42 96 Q30 120 10 140 Q4 116 30 100Z" fill="#5bb8e8"/>
+        <!-- body -->
+        <ellipse cx="108" cy="100" rx="82" ry="54" fill="#5bb8e8"/>
+        <!-- belly -->
+        <ellipse cx="118" cy="120" rx="56" ry="28" fill="#bfe9fb"/>
+        <!-- fin (bottom) -->
+        <path d="M118 140 Q136 170 106 166 Q104 150 98 140Z" fill="#4aa9dd"/>
+        <!-- spout -->
+        <g id="spout" opacity="0">
+          <circle cx="150" cy="42" r="5" fill="#cdeeff"/>
+          <circle cx="140" cy="30" r="4" fill="#cdeeff"/>
+          <circle cx="162" cy="32" r="4" fill="#cdeeff"/>
+        </g>
+        <!-- normal face (side view, one eye) -->
+        <g class="face face-normal">
+          <circle cx="150" cy="92" r="9" fill="#fff"/><circle cx="152" cy="94" r="5" fill="#0b3a5b"/>
+          <path d="M158 110 Q170 116 180 108" stroke="#0b3a5b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <!-- happy face -->
+        <g class="face face-happy">
+          <path d="M142 92 Q151 83 160 92" stroke="#0b3a5b" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M152 104 Q170 126 186 102" stroke="#0b3a5b" stroke-width="4" fill="none" stroke-linecap="round"/>
+        </g>
+        <!-- sleep face -->
+        <g class="face face-sleep">
+          <path d="M142 94 L160 94" stroke="#0b3a5b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <path d="M160 110 Q170 114 180 110" stroke="#0b3a5b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <!-- hungry face -->
+        <g class="face face-hungry">
+          <circle cx="150" cy="92" r="9" fill="#fff"/><circle cx="152" cy="94" r="5" fill="#0b3a5b"/>
+          <path d="M158 114 Q170 106 180 114" stroke="#0b3a5b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <path d="M186 70 q5 6 0 13" stroke="#7fd8ff" stroke-width="3" fill="none" stroke-linecap="round"/>
+        </g>
+        <!-- love face -->
+        <g class="face face-love">
+          <path d="M148 88 l4 4 l4 -4 a3 3 0 0 0 -4 -3 a3 3 0 0 0 -4 3Z" fill="#ff5e8e"/>
+          <path d="M158 110 Q170 122 180 110" stroke="#0b3a5b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <!-- dirty face (spots away from eye) -->
+        <g class="face face-dirty">
+          <circle cx="150" cy="92" r="9" fill="#fff"/><circle cx="152" cy="94" r="5" fill="#0b3a5b"/>
+          <path d="M158 112 Q170 106 180 112" stroke="#0b3a5b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <circle cx="58" cy="92" r="5" fill="#9bb8c9" opacity=".6"/>
+          <circle cx="92" cy="138" r="4" fill="#9bb8c9" opacity=".6"/>
+          <circle cx="80" cy="112" r="3" fill="#9bb8c9" opacity=".5"/>
+        </g>
+      </svg>
+    </div>
+    <div class="zzz">Z z</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="lab"><span>🍖 饱食度</span><b id="v-satiety">80</b></div><div class="bar f-satiety"><i id="b-satiety"></i></div></div>
+    <div class="stat"><div class="lab"><span>😊 心情</span><b id="v-mood">80</b></div><div class="bar f-mood"><i id="b-mood"></i></div></div>
+    <div class="stat"><div class="lab"><span>⚡ 精力</span><b id="v-energy">80</b></div><div class="bar f-energy"><i id="b-energy"></i></div></div>
+    <div class="stat"><div class="lab"><span>🛁 清洁</span><b id="v-clean">80</b></div><div class="bar f-clean"><i id="b-clean"></i></div></div>
+    <div class="stat" style="grid-column:1 / span 2"><div class="lab"><span>💜 亲密度</span><b id="v-bond">0</b></div><div class="bar f-bond"><i id="b-bond"></i></div></div>
+  </div>
+
+  <div class="growth">
+    <div>🌟 成长值：<span id="v-growth">0</span> / <span id="v-next">100</span></div>
+    <div class="gbar"><i id="b-growth"></i></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="btnFeed"><span class="ico">🍖</span>喂食</button>
+    <button class="btn" id="btnPet"><span class="ico">🤚</span>摸摸</button>
+    <button class="btn" id="btnPlay"><span class="ico">🎮</span>玩耍</button>
+    <button class="btn" id="btnClean"><span class="ico">🛁</span>清洁</button>
+    <button class="btn" id="btnSleep"><span class="ico">😴</span>睡觉</button>
+    <button class="btn" id="btnPoke"><span class="ico">👆</span>戳戳</button>
+  </div>
+
+  <div class="log">
+    <h4>📜 互动记录</h4>
+    <ul id="logList"><li>小鲸鱼刚刚来到你身边~</li></ul>
+  </div>
+
+  <div class="reset"><a href="#" id="resetBtn">重新开始（清空存档）</a></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var KEY = "whale_save_v1";
+  var LEVELS = [
+    {name:"鲸卵", scale:0.62, next:100},
+    {name:"小幼鲸", scale:0.78, next:200},
+    {name:"少年鲸", scale:0.92, next:350},
+    {name:"成鲸", scale:1.06, next:550},
+    {name:"巨鲸王", scale:1.22, next:Infinity}
+  ];
+  var FOODS = ["🍖","🐟","🦐","🍤","🥬","🍙","🐙","🍓"];
+
+  var state = load() || {
+    name:"小鲸", level:0, growth:0,
+    satiety:80, mood:80, energy:80, clean:80, bond:0,
+    log:[], born:Date.now()
+  };
+
+  var el = {
+    whale: document.getElementById("whale"),
+    speech: document.getElementById("speech"),
+    name: document.getElementById("whaleName"),
+    levelText: document.getElementById("levelText"),
+    vSatiety: document.getElementById("v-satiety"), bSatiety: document.getElementById("b-satiety"),
+    vMood: document.getElementById("v-mood"), bMood: document.getElementById("b-mood"),
+    vEnergy: document.getElementById("v-energy"), bEnergy: document.getElementById("b-energy"),
+    vClean: document.getElementById("v-clean"), bClean: document.getElementById("b-clean"),
+    vBond: document.getElementById("v-bond"), bBond: document.getElementById("b-bond"),
+    vGrowth: document.getElementById("v-growth"), vNext: document.getElementById("v-next"), bGrowth: document.getElementById("b-growth"),
+    logList: document.getElementById("logList"),
+    spout: document.getElementById("spout"),
+    btnSleep: document.getElementById("btnSleep")
+  };
+
+  var faceTimer = null, sleepTimer = null, speechTimer = null;
+
+  function clamp(v){ return Math.max(0, Math.min(100, v)); }
+  function load(){ try { return JSON.parse(localStorage.getItem(KEY)); } catch(e){ return null; } }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+
+  function pushLog(msg){
+    var d = new Date();
+    var t = ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);
+    state.log.unshift({t:t, m:msg});
+    if(state.log.length > 8) state.log.pop();
+  }
+
+  function speak(text, ms){
+    el.speech.textContent = text;
+    el.speech.classList.add("show");
+    clearTimeout(speechTimer);
+    speechTimer = setTimeout(function(){ el.speech.classList.remove("show"); }, ms || 2200);
+  }
+
+  function setFace(face){
+    el.whale.className = "whale " + face;
+  }
+
+  function flashFace(face, back, ms){
+    setFace(face);
+    clearTimeout(faceTimer);
+    faceTimer = setTimeout(function(){ setFace(back); }, ms || 1500);
+  }
+
+  function render(){
+    el.name.textContent = state.name;
+    var lv = LEVELS[state.level];
+    el.levelText.textContent = "Lv." + (state.level+1) + " " + lv.name;
+    el.whale.style.transform = "scale(" + lv.scale + ")";
+
+    el.vSatiety.textContent = Math.round(state.satiety); el.bSatiety.style.width = state.satiety + "%";
+    el.vMood.textContent = Math.round(state.mood); el.bMood.style.width = state.mood + "%";
+    el.vEnergy.textContent = Math.round(state.energy); el.bEnergy.style.width = state.energy + "%";
+    el.vClean.textContent = Math.round(state.clean); el.bClean.style.width = state.clean + "%";
+    el.vBond.textContent = Math.round(state.bond); el.bBond.style.width = state.bond + "%";
+    el.vGrowth.textContent = Math.round(state.growth); el.vNext.textContent = (lv.next===Infinity?"MAX":lv.next);
+    el.bGrowth.style.width = (lv.next===Infinity?100:(state.growth/lv.next*100)) + "%";
+
+    el.logList.innerHTML = "";
+    state.log.forEach(function(item){
+      var li = document.createElement("li");
+      li.innerHTML = '<span class="t">'+item.t+'</span>'+item.m;
+      el.logList.appendChild(li);
+    });
+  }
+
+  function addGrowth(n){
+    if(state.level >= LEVELS.length-1) return;
+    state.growth += n;
+    var lv = LEVELS[state.level];
+    if(state.growth >= lv.next){
+      state.growth = 0;
+      state.level++;
+      var newName = LEVELS[state.level].name;
+      pushLog("🌟 成长到 Lv."+(state.level+1)+" "+newName+"！");
+      speak("我长大啦！现在是"+newName+"！", 3000);
+      flashFace("happy","normal",3000);
+    }
+  }
+
+  function busy(){
+    // 睡觉期间禁用互动
+    return el.btnSleep.disabled;
+  }
+
+  // ---- actions ----
+  document.getElementById("btnFeed").addEventListener("click", function(){
+    if(busy()) return;
+    var f = FOODS[Math.floor(Math.random()*FOODS.length)];
+    state.satiety = clamp(state.satiety + 18);
+    state.mood = clamp(state.mood + 4);
+    state.clean = clamp(state.clean - 3);
+    addGrowth(6);
+    pushLog("喂了 "+f+" 给 "+state.name);
+    speak(f+" 好吃！谢谢安元~", 2200);
+    flashFace("happy","normal",1400);
+    save(); render();
+  });
+
+  document.getElementById("btnPet").addEventListener("click", function(){
+    if(busy()) return;
+    state.bond = clamp(state.bond + 7);
+    state.mood = clamp(state.mood + 6);
+    addGrowth(5);
+    pushLog("摸了摸 "+state.name+" 的头");
+    var msgs = ["呜呜…好舒服","喜欢安元的手手","再摸一会儿嘛","心跳加速啦💓"];
+    speak(msgs[Math.floor(Math.random()*msgs.length)], 2200);
+    flashFace("love","normal",1600);
+    save(); render();
+  });
+
+  document.getElementById("btnPlay").addEventListener("click", function(){
+    if(busy()) return;
+    if(state.energy < 12){ speak("累懒得动…先睡会儿吧", 2000); flashFace("hungry","normal",1400); return; }
+    state.mood = clamp(state.mood + 14);
+    state.energy = clamp(state.energy - 12);
+    state.satiety = clamp(state.satiety - 6);
+    state.clean = clamp(state.clean - 5);
+    addGrowth(8);
+    pushLog("和 "+state.name+" 玩了一会儿");
+    speak("游来游去好开心！", 2200);
+    el.spout.setAttribute("opacity","1");
+    setTimeout(function(){ el.spout.setAttribute("opacity","0"); }, 1200);
+    flashFace("happy","normal",1500);
+    save(); render();
+  });
+
+  document.getElementById("btnClean").addEventListener("click", function(){
+    if(busy()) return;
+    state.clean = 100;
+    state.mood = clamp(state.mood + 3);
+    addGrowth(3);
+    pushLog("给 "+state.name+" 洗了澡");
+    speak("干干净净，香喷喷~", 2200);
+    flashFace("happy","normal",1300);
+    save(); render();
+  });
+
+  document.getElementById("btnSleep").addEventListener("click", function(){
+    if(el.btnSleep.disabled){
+      // 唤醒
+      clearTimeout(sleepTimer);
+      el.btnSleep.disabled = false;
+      el.btnSleep.querySelector(".ico").textContent = "😴";
+      el.btnSleep.childNodes[1].textContent = "睡觉";
+      setFace("normal");
+      state.energy = clamp(state.energy + 30);
+      pushLog(state.name+" 睡醒了，精力恢复");
+      speak("睡饱啦！精神多了~", 2200);
+      save(); render();
+      return;
+    }
+    el.btnSleep.disabled = true;
+    el.btnSleep.querySelector(".ico").textContent = "☀️";
+    el.btnSleep.childNodes[1].textContent = "唤醒";
+    setFace("sleep");
+    speak("Zzz… 我去睡会儿", 1800);
+    pushLog(state.name+" 睡着了");
+    sleepTimer = setTimeout(function(){
+      el.btnSleep.disabled = false;
+      el.btnSleep.querySelector(".ico").textContent = "😴";
+      el.btnSleep.childNodes[1].textContent = "睡觉";
+      setFace("normal");
+      state.energy = 100;
+      pushLog(state.name+" 自动睡醒，精力满满");
+      speak("睡饱啦！精神多了~", 2200);
+      save(); render();
+    }, 8000);
+    save(); render();
+  });
+
+  document.getElementById("btnPoke").addEventListener("click", function(){
+    if(busy()) return;
+    state.mood = clamp(state.mood + 2);
+    var msgs = ["诶！干嘛戳我","哼，调皮","泡泡都给你戳散了","安元好坏😤"];
+    speak(msgs[Math.floor(Math.random()*msgs.length)], 1800);
+    flashFace("happy","normal",900);
+    save(); render();
+  });
+
+  // 改名
+  el.name.addEventListener("click", function(){
+    var n = prompt("给小鲸鱼起个名字吧：", state.name);
+    if(n && n.trim()){ state.name = n.trim().slice(0,8); pushLog("改名啦："+state.name); save(); render(); }
+  });
+
+  // 戳鲸鱼本体也能摸
+  el.whale.addEventListener("click", function(){
+    if(busy()) return;
+    state.bond = clamp(state.bond + 3);
+    state.mood = clamp(state.mood + 3);
+    speak("呜呜~ 安元摸我", 1600);
+    flashFace("love","normal",1000);
+    save(); render();
+  });
+
+  // 重置
+  document.getElementById("resetBtn").addEventListener("click", function(e){
+    e.preventDefault();
+    if(confirm("确定要重新开始吗？当前进度会清空哦")){
+      localStorage.removeItem(KEY);
+      state = { name:"小鲸", level:0, growth:0, satiety:80, mood:80, energy:80, clean:80, bond:0, log:[], born:Date.now() };
+      pushLog("小鲸鱼刚刚来到你身边~");
+      save(); render(); speak("呜呜~ 我是你的小鲸鱼！", 2500);
+    }
+  });
+
+  // 随时间衰减
+  setInterval(function(){
+    if(busy()) { save(); return; } // 睡觉时只回精力
+    state.satiety = clamp(state.satiety - 2);
+    state.mood = clamp(state.mood - 1);
+    state.clean = clamp(state.clean - 1);
+    state.energy = clamp(state.energy + 1); // 自然回一点点
+    // 状态表情
+    var face = "normal";
+    if(state.satiety < 25) face = "hungry";
+    else if(state.clean < 25) face = "dirty";
+    else if(state.mood < 25) face = "hungry";
+    setFace(face);
+    // 饿/脏 提醒
+    if(state.satiety < 20 && Math.random() < 0.5) speak("咕噜…有点饿了呢", 2000);
+    else if(state.clean < 20 && Math.random() < 0.4) speak("身上黏黏的…想洗澡", 2000);
+    save(); render();
+  }, 5000);
+
+  // 初始化背景气泡
+  for(var i=0;i<14;i++){
+    var b = document.createElement("div");
+    b.className = "bg-bub";
+    var s = 8 + Math.random()*40;
+    b.style.width = s+"px"; b.style.height = s+"px";
+    b.style.left = Math.random()*100+"%";
+    b.style.animationDuration = (10 + Math.random()*16)+"s";
+    b.style.animationDelay = (-Math.random()*20)+"s";
+    document.body.appendChild(b);
+  }
+
+  render();
+  // 进场打招呼
+  setTimeout(function(){ speak("安元安元~ 我是你的小鲸鱼！", 2600); }, 600);
+})();
+</script>
+</body>
+</html>
